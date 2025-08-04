@@ -1,41 +1,67 @@
 import streamlit as st
+import requests
 import pandas as pd
 
-# ---------- App Title & Branding ----------
+# ----- CONFIG -----
+API_KEY = "29ef4aa2a7a643c990186cf0b5a2b9cc"
+BASE_URL = "https://api.rawg.io/api/games"
+
+# ----- PAGE SETUP -----
 st.set_page_config(page_title="PlayRadar", page_icon="🎮")
 st.title("🎮 PlayRadar")
-st.subheader("Discover what’s trending in the world of gaming!")
+st.subheader("Discover what's trending in the gaming world, in real time!")
 
-# ---------- Sample Trending Game Data ----------
-games = [
-    {"Title": "Elden Ring", "Genre": "RPG", "Platform": "PC", "Rating": 9.5, "Release": "2022"},
-    {"Title": "God of War: Ragnarok", "Genre": "Action", "Platform": "PS5", "Rating": 9.8, "Release": "2022"},
-    {"Title": "The Legend of Zelda: Tears of the Kingdom", "Genre": "Adventure", "Platform": "Switch", "Rating": 9.7, "Release": "2023"},
-    {"Title": "Starfield", "Genre": "Sci-Fi", "Platform": "Xbox", "Rating": 8.5, "Release": "2023"},
-    {"Title": "Hogwarts Legacy", "Genre": "Fantasy", "Platform": "PC", "Rating": 8.2, "Release": "2023"},
-]
+# ----- FILTER OPTIONS -----
+platforms = {
+    "All": None,
+    "PC": 4,
+    "PlayStation 5": 187,
+    "Xbox Series X": 186,
+    "Nintendo Switch": 7
+}
 
-df = pd.DataFrame(games)
+genres = {
+    "All": None,
+    "Action": "action",
+    "RPG": "role-playing-games-rpg",
+    "Adventure": "adventure",
+    "Shooter": "shooter",
+    "Strategy": "strategy"
+}
 
-# ---------- Sidebar Filters ----------
 st.sidebar.header("🎮 Filter Games")
-platform = st.sidebar.selectbox("Platform", ["All", "PC", "PS5", "Xbox", "Switch"])
-genre = st.sidebar.selectbox("Genre", ["All", "Action", "RPG", "Adventure", "Sci-Fi", "Fantasy"])
+selected_platform = st.sidebar.selectbox("Platform", list(platforms.keys()))
+selected_genre = st.sidebar.selectbox("Genre", list(genres.keys()))
 
-# ---------- Apply Filters ----------
-filtered_df = df.copy()
-if platform != "All":
-    filtered_df = filtered_df[filtered_df["Platform"] == platform]
-if genre != "All":
-    filtered_df = filtered_df[filtered_df["Genre"] == genre]
+# ----- API REQUEST -----
+params = {
+    "key": API_KEY,
+    "page_size": 10,
+    "ordering": "-added"  # Recently popular
+}
 
-# ---------- Show Filtered Results ----------
-st.markdown("### 🎯 Trending Games")
-if filtered_df.empty:
-    st.warning("No games found for the selected filters.")
+if platforms[selected_platform]:
+    params["platforms"] = platforms[selected_platform]
+
+if genres[selected_genre]:
+    params["genres"] = genres[selected_genre]
+
+response = requests.get(BASE_URL, params=params)
+
+if response.status_code == 200:
+    data = response.json()
+    games = data["results"]
+
+    st.markdown("### 🔥 Trending Games Right Now")
+
+    for game in games:
+        st.markdown(f"**{game['name']}**")
+        st.write(f"⭐ Rating: {game['rating']} | 📅 Released: {game.get('released', 'N/A')}")
+        if game.get("background_image"):
+            st.image(game["background_image"], width=600)
+        st.markdown("---")
 else:
-    st.dataframe(filtered_df.reset_index(drop=True))
+    st.error("Failed to fetch game data. Please check your API key or try again later.")
 
-# ---------- Footer ----------
-st.markdown("---")
-st.caption("🚀 Powered by PlayRadar • More features and live data coming soon!")
+# ----- FOOTER -----
+st.caption("🚀 Powered by RAWG • Brought to you by PlayRadar")
